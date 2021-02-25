@@ -1,0 +1,66 @@
+Lousy explanation:
+
+Generate Games with cutechess-cli or whatever:
+
+cutechess-cli.exe -engine conf=stockfish_20210222_modern_atomic -engine conf=stockfish_20210222_modern_atomic_2 -tournament round-robin -games 10000 -variant atomic -pgnout C:\Users\RYZEN\Desktop\SFtrainatomic_2021-02-22.pgn -each tc=40/4.5 -openings file=C:\Users\RYZEN\Desktop\atomic_ob.pgn format=pgn order=random plies=16 -repeat -concurrency 8
+(Example command)
+
+STEP 1) Download pgn_to_plain.py and change some minor code to atomic
+https://github.com/nodchip/Stockfish/blob/master/script/pgn_to_plain.py
+
+Line 2: import chess.variant
+Line 10: def parse_result(result_str:str, board:chess.variant.AtomicBoard) -> int:
+Line 34:     board: chess.variant.AtomicBoard = game.board()
+
+Usage:
+python pgn_to_plain.py --pgn whatever.pgn --start_ply 1 --output converted_pgn.txt
+
+STEP 2) Get the official SF-NNUE from nodchip (Since the converted pgn_to_plain uses FEN there is no problem for atomic at all, the new FENs are generated correctly throught atomic board)
+https://github.com/nodchip/Stockfish/releases/tag/stockfish-nnue-2020-08-30
+
+Open the stockfish for your architecture -> Intel: BMI2, AMD: modern, AVX2 etc
+
+Place the generated_fens.txt in the same folder as the stockfish exes
+
+Inside stockfish run this:
+learn convert_bin generated_fens.txt
+
+You'll get some file named shuffled_sfen.bin inside it.
+
+STEP 3) Get NNUE-Pytorch
+https://github.com/glinscott/nnue-pytorch
+
+(optional if errors occur, minor investigatio down here)
+
+-----------------
+
+Install MinGW with C++17
+https://www.geeksforgeeks.org/complete-guide-to-install-c17-in-windows/
+Follow the steps, add it to the PATH on the environment options like they're saying
+
+	Mini Step 1) to compile the datasets:
+	Edit the file named compile_data_loader.bat to look like this:
+	cmake -G "MSYS Makefiles" . -Bbuild -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX="./"
+	cmake -G "MSYS Makefiles" ./build --config RelWithDebInfo --target install
+	
+	Mini Step 2) Run compile_data_loader.bat on CMD, should get an error at the end, but doesn't matter
+	Mini Step 3) cd build
+	Mini Step 4) make
+	Should be working now
+
+Follow these instructions to install pytorch with your CUDA version:
+https://stackoverflow.com/questions/57238344/i-have-a-gpu-and-cuda-installed-in-windows-10-but-pytorchs-torch-cuda-is-avaiab
+-----------------
+
+
+Hopefully NNUE-Pytorch is working now.
+
+python train.py --smart-fen-skipping --random-fen-skipping 10 --batch-size 16384 --threads 8 --num-workers 8 --gpus 1 trainingdata validationdata 
+
+(More instructions on their GITHUB)
+
+to convert it to SF's NNUE
+
+python serialize.py last.ckpt nnue_generated.nnue
+
+And BAM, Think it's done
